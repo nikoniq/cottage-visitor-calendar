@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  ExternalLink,
   Home,
   KeyRound,
   Lock,
@@ -29,6 +30,7 @@ import {
   toISODate,
 } from '@/lib/utils';
 import { END_DATE, START_DATE } from '@/lib/constants';
+import { HOLIDAYS_2026 } from '@/lib/holidays';
 
 type Props = {
   initialBookings: Booking[];
@@ -36,7 +38,7 @@ type Props = {
   adminPassword: string;
 };
 
-type ActiveTab = 'calendar' | 'request' | 'list';
+type ActiveTab = 'calendar' | 'request' | 'list' | 'holidays';
 
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -387,6 +389,13 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
             >
               Date List
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('holidays')}
+              className={`rounded-2xl px-4 py-2 transition ${activeTab === 'holidays' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}
+            >
+              Bermuda Holidays
+            </button>
           </div>
 
           {activeTab === 'calendar' ? (
@@ -439,6 +448,34 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
                 );
               })}
             </div>
+            </div>
+          ) : null}
+
+          {activeTab === 'holidays' ? (
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-md">
+              <h2 className="text-2xl font-semibold">Bermuda holidays and events</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Helpful dates for planning visits. Event schedules can change, so use the official links for the latest details.
+              </p>
+              <div className="mt-5 space-y-3">
+                {HOLIDAYS_2026.map((item) => (
+                  <a
+                    key={item.name}
+                    href={item.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    <div>
+                      <p className="font-medium text-slate-900">{item.name}</p>
+                      <p className="text-sm text-slate-500">{item.dateRange}</p>
+                    </div>
+                    <span className="inline-flex items-center text-sm text-slate-600">
+                      Official link <ExternalLink className="ml-1 h-4 w-4" />
+                    </span>
+                  </a>
+                ))}
+              </div>
             </div>
           ) : null}
 
