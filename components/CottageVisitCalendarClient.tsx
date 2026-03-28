@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, type ReactNode } from 'react';
+import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   Ban,
@@ -16,6 +16,7 @@ import {
   Mail,
   Phone,
   ShieldCheck,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { Booking } from '@/lib/types';
@@ -32,7 +33,7 @@ import {
   toISODate,
 } from '@/lib/utils';
 import { END_DATE, START_DATE } from '@/lib/constants';
-import { HOLIDAYS_2026 } from '@/lib/holidays';
+import { HOLIDAYS_2026, type HolidayItem } from '@/lib/holidays';
 
 type Props = {
   initialBookings: Booking[];
@@ -163,6 +164,9 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('calendar');
+  const [holidays, setHolidays] = useState<HolidayItem[]>(HOLIDAYS_2026.map((item, index) => ({ ...item, id: `static-${index}` })));
+  const [holidayForm, setHolidayForm] = useState({ name: '', dateRange: '', link: '', description: '', emoji: '' });
+  const [holidayMessage, setHolidayMessage] = useState('');
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -300,6 +304,64 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
 
   const unavailableRanges = visibleItems.filter((b) => b.status === 'unavailable').length;
   const requestedRanges = visibleItems.filter((b) => b.status === 'requested').length;
+
+  useEffect(() => {
+    async function loadHolidays() {
+      const res = await fetch('/api/holidays', { cache: 'no-store' });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.holidays)) setHolidays(data.holidays);
+    }
+    loadHolidays();
+  }, []);
+
+  async function addHolidayEvent() {
+    setHolidayMessage('');
+    if (!holidayForm.name || !holidayForm.dateRange || !holidayForm.link) {
+      setHolidayMessage('Please enter name, date range, and URL.');
+      return;
+    }
+
+    setBusy(true);
+    const res = await fetch('/api/holidays', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...holidayForm, adminPassword }),
+    });
+    const data = await res.json();
+    setBusy(false);
+
+    if (!res.ok) {
+      setHolidayMessage(data.error ?? 'Could not save holiday event.');
+      return;
+    }
+
+    setHolidays((prev) => [...prev, data.holiday]);
+    setHolidayForm({ name: '', dateRange: '', link: '', description: '', emoji: '' });
+    setHolidayMessage('Holiday event saved.');
+  }
+
+  async function deleteHolidayEvent(id?: string) {
+    if (!id) return;
+    if (id.startsWith('static-')) {
+      setHolidayMessage('This is a fallback holiday item. Add the holiday_events table to enable full editing.');
+      return;
+    }
+
+    setBusy(true);
+    const res = await fetch('/api/holidays/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, adminPassword }),
+    });
+    const data = await res.json();
+    setBusy(false);
+
+    if (!res.ok) {
+      setHolidayMessage(data.error ?? 'Could not delete holiday event.');
+      return;
+    }
+    setHolidays((prev) => prev.filter((item) => item.id !== id));
+  }
 
   if (!unlocked) {
     return (
@@ -501,24 +563,63 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
                 Helpful dates for planning visits. Event schedules can change, so use the official links for the latest details.
               </p>
               <div className="mt-5 space-y-3">
-                {HOLIDAYS_2026.map((item) => (
+                {holidays.map((item) => (
                   <a
-                    key={item.name}
+                    key={`${item.name}-${item.dateRange}-${item.id ?? 'noid'}`}
                     href={item.link}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50"
                   >
-                    <div>
-                      <p className="font-medium text-slate-900">{item.name}</p>
-                      <p className="text-sm text-slate-500">{item.dateRange}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base">
+                          {item.emoji ?? '🌴'}
+                        </span>
+                        <div>
+                          <p className="font-medium text-slate-900">{item.name}</p>
+                          <p className="text-sm text-slate-500">{item.dateRange}</p>
+                        </div>
+                      </div>
+                      {item.description ? <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.description}</p> : null}
                     </div>
-                    <span className="inline-flex items-center text-sm text-slate-600">
-                      Official link <ExternalLink className="ml-1 h-4 w-4" />
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center text-sm text-slate-600">
+                        Official link <ExternalLink className="ml-1 h-4 w-4" />
+                      </span>
+                      {adminMode ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            deleteHolidayEvent(item.id);
+                          }}
+                          className="rounded-xl border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100"
+                          aria-label={`Delete ${item.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </div>
                   </a>
                 ))}
               </div>
+              {adminMode ? (
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="font-medium text-slate-900">Add holiday/event</p>
+                  <div className="mt-3 grid gap-3 md:grid-cols-4">
+                    <Input value={holidayForm.emoji} onChange={(e) => setHolidayForm({ ...holidayForm, emoji: e.target.value })} placeholder="Emoji (optional)" className="h-10 rounded-xl bg-white" />
+                    <Input value={holidayForm.name} onChange={(e) => setHolidayForm({ ...holidayForm, name: e.target.value })} placeholder="Event name" className="h-10 rounded-xl bg-white" />
+                    <Input value={holidayForm.dateRange} onChange={(e) => setHolidayForm({ ...holidayForm, dateRange: e.target.value })} placeholder="Date range (e.g. May 9–10, 2026)" className="h-10 rounded-xl bg-white" />
+                    <Input value={holidayForm.link} onChange={(e) => setHolidayForm({ ...holidayForm, link: e.target.value })} placeholder="https://..." className="h-10 rounded-xl bg-white" />
+                  </div>
+                  <textarea value={holidayForm.description} onChange={(e) => setHolidayForm({ ...holidayForm, description: e.target.value })} className="mt-3 min-h-24 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Short intro (4–5 lines)." />
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <Button onClick={addHolidayEvent} disabled={busy} className="rounded-xl">{busy ? 'Saving...' : 'Add event'}</Button>
+                    {holidayMessage ? <p className="text-sm text-slate-600">{holidayMessage}</p> : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
