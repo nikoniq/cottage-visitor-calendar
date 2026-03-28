@@ -1,18 +1,22 @@
 'use client';
 
-import React, { useMemo, useState, type ReactNode } from 'react';
+import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   Ban,
   CalendarDays,
   CheckCircle2,
   Clock3,
+  Eye,
+  EyeOff,
+  ExternalLink,
   Home,
   KeyRound,
   Lock,
   Mail,
   Phone,
   ShieldCheck,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { Booking } from '@/lib/types';
@@ -29,12 +33,15 @@ import {
   toISODate,
 } from '@/lib/utils';
 import { END_DATE, START_DATE } from '@/lib/constants';
+import { HOLIDAYS_2026, type HolidayItem } from '@/lib/holidays';
 
 type Props = {
   initialBookings: Booking[];
   sharedPassword: string;
   adminPassword: string;
 };
+
+type ActiveTab = 'calendar' | 'request' | 'list' | 'holidays';
 
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -151,9 +158,15 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   const [adminMode, setAdminMode] = useState(false);
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [showSharedPassword, setShowSharedPassword] = useState(false);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>(initialBookings);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('calendar');
+  const [holidays, setHolidays] = useState<HolidayItem[]>(HOLIDAYS_2026.map((item, index) => ({ ...item, id: `static-${index}` })));
+  const [holidayForm, setHolidayForm] = useState({ name: '', dateRange: '', link: '' });
+  const [holidayMessage, setHolidayMessage] = useState('');
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -194,11 +207,12 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   }
 
   function handleAdminUnlock() {
-    if (adminPasswordInput === adminPassword) {
+    if (adminPasswordInput.trim() === adminPassword.trim()) {
       setAdminMode(true);
       setShowAdminPrompt(false);
       setAdminPasswordInput('');
-      setMessage('');
+      setShowAdminPassword(false);
+      setMessage('Admin mode enabled. You can now manage request statuses and view full contact details.');
     } else {
       setMessage('That admin password is not correct.');
     }
@@ -209,8 +223,10 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
       setAdminMode(false);
       setShowAdminPrompt(false);
       setAdminPasswordInput('');
+      setShowAdminPassword(false);
       return;
     }
+    setShowAdminPassword(false);
     setShowAdminPrompt(true);
   }
 
@@ -289,6 +305,64 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   const unavailableRanges = visibleItems.filter((b) => b.status === 'unavailable').length;
   const requestedRanges = visibleItems.filter((b) => b.status === 'requested').length;
 
+  useEffect(() => {
+    async function loadHolidays() {
+      const res = await fetch('/api/holidays', { cache: 'no-store' });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.holidays)) setHolidays(data.holidays);
+    }
+    loadHolidays();
+  }, []);
+
+  async function addHolidayEvent() {
+    setHolidayMessage('');
+    if (!holidayForm.name || !holidayForm.dateRange || !holidayForm.link) {
+      setHolidayMessage('Please enter name, date range, and URL.');
+      return;
+    }
+
+    setBusy(true);
+    const res = await fetch('/api/holidays', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...holidayForm, adminPassword }),
+    });
+    const data = await res.json();
+    setBusy(false);
+
+    if (!res.ok) {
+      setHolidayMessage(data.error ?? 'Could not save holiday event.');
+      return;
+    }
+
+    setHolidays((prev) => [...prev, data.holiday]);
+    setHolidayForm({ name: '', dateRange: '', link: '' });
+    setHolidayMessage('Holiday event saved.');
+  }
+
+  async function deleteHolidayEvent(id?: string) {
+    if (!id) return;
+    if (id.startsWith('static-')) {
+      setHolidayMessage('This is a fallback holiday item. Add the holiday_events table to enable full editing.');
+      return;
+    }
+
+    setBusy(true);
+    const res = await fetch('/api/holidays/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, adminPassword }),
+    });
+    const data = await res.json();
+    setBusy(false);
+
+    if (!res.ok) {
+      setHolidayMessage(data.error ?? 'Could not delete holiday event.');
+      return;
+    }
+    setHolidays((prev) => prev.filter((item) => item.id !== id));
+  }
+
   if (!unlocked) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-6 md:p-10">
@@ -310,7 +384,24 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
                 <div className="space-y-3">
                   <Label htmlFor="password">Shared password</Label>
                   <div className="flex gap-3">
-                    <Input id="password" type="password" value={enteredPassword} onChange={(e) => setEnteredPassword(e.target.value)} placeholder="Enter password" className="h-12 rounded-2xl" />
+                    <div className="relative flex-1">
+                      <Input
+                        id="password"
+                        type={showSharedPassword ? 'text' : 'password'}
+                        value={enteredPassword}
+                        onChange={(e) => setEnteredPassword(e.target.value)}
+                        placeholder="Enter password"
+                        className="h-12 rounded-2xl pr-12"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSharedPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
+                        aria-label={showSharedPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showSharedPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                     <Button onClick={handleUnlock} className="h-12 rounded-2xl px-6"><Lock className="mr-2 h-4 w-4" />Enter</Button>
                   </div>
                   {message ? <p className="text-sm text-rose-600">{message}</p> : null}
@@ -324,17 +415,17 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#eef4f8_0%,#f7fafb_45%,#edf3ee_100%)] text-slate-900">
+      <div className="sticky top-0 z-20 border-b border-[#d6dfeb] bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Cottage Visit Calendar</h1>
-            <p className="mt-1 text-slate-500">Private visit planning for invited guests</p>
+            <p className="mt-1 text-[#4b5f79]">Private visit planning for invited guests</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm text-emerald-800">Available</span>
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm text-amber-800">Requested</span>
-            <span className="rounded-full bg-rose-100 px-3 py-1 text-sm text-rose-800">Unavailable</span>
+            <span className="rounded-full bg-[#dceedd] px-3 py-1 text-sm text-[#245341]">Available</span>
+            <span className="rounded-full bg-[#f4e7cf] px-3 py-1 text-sm text-[#7a4f1f]">Requested</span>
+            <span className="rounded-full bg-[#f4dde0] px-3 py-1 text-sm text-[#7d2940]">Unavailable</span>
             <Button variant={adminMode ? 'default' : 'outline'} className="ml-2 rounded-2xl" onClick={handleAdminToggle}><ShieldCheck className="mr-2 h-4 w-4" />{adminMode ? 'Hide Admin' : 'Admin View'}</Button>
           </div>
         </div>
@@ -342,26 +433,84 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-8">
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100"><CalendarDays className="h-6 w-6" /></div><div><p className="text-sm text-slate-500">Calendar window</p><p className="font-semibold">{formatDate(new Date(START_DATE))} to {formatDate(new Date(END_DATE))}</p></div></div></div>
-          <div className="rounded-3xl bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100"><Clock3 className="h-6 w-6 text-amber-700" /></div><div><p className="text-sm text-slate-500">Current requested ranges</p><p className="font-semibold">{requestedRanges}</p></div></div></div>
-          <div className="rounded-3xl bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100"><Ban className="h-6 w-6 text-rose-700" /></div><div><p className="text-sm text-slate-500">Current unavailable ranges</p><p className="font-semibold">{unavailableRanges}</p></div></div></div>
+          <div className="rounded-3xl border border-[#d8e2ef] bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e6edf8]"><CalendarDays className="h-6 w-6" /></div><div><p className="text-sm text-slate-500">Calendar window</p><p className="font-semibold">{formatDate(new Date(START_DATE))} to {formatDate(new Date(END_DATE))}</p></div></div></div>
+          <div className="rounded-3xl border border-[#e8ddcd] bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4e7cf]"><Clock3 className="h-6 w-6 text-amber-700" /></div><div><p className="text-sm text-slate-500">Current requested ranges</p><p className="font-semibold">{requestedRanges}</p></div></div></div>
+          <div className="rounded-3xl border border-[#ead8de] bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4dde0]"><Ban className="h-6 w-6 text-rose-700" /></div><div><p className="text-sm text-slate-500">Current unavailable ranges</p><p className="font-semibold">{unavailableRanges}</p></div></div></div>
         </div>
 
+
+
+        {adminMode ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <span className="font-semibold">Admin mode is active.</span> You can edit booking statuses, delete requests, and view full contact details below.
+          </div>
+        ) : null}
         {showAdminPrompt ? (
           <div className="max-w-xl rounded-[2rem] border border-slate-200 bg-white p-5 shadow-md md:p-6">
             <div className="mb-4 flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100"><KeyRound className="h-5 w-5 text-slate-700" /></div><div><p className="font-semibold text-slate-900">Admin access</p><p className="text-sm text-slate-500">Enter the separate admin password to manage requests.</p></div></div>
-            <div className="flex gap-3"><Input type="password" value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} placeholder="Enter admin password" className="h-11 rounded-2xl" /><Button onClick={handleAdminUnlock} className="h-11 rounded-2xl px-5">Unlock</Button></div>
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Input
+                  type={showAdminPassword ? 'text' : 'password'}
+                  value={adminPasswordInput}
+                  onChange={(e) => setAdminPasswordInput(e.target.value)}
+                  placeholder="Enter admin password"
+                  className="h-11 rounded-2xl pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
+                  aria-label={showAdminPassword ? 'Hide admin password' : 'Show admin password'}
+                >
+                  {showAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <Button onClick={handleAdminUnlock} className="h-11 rounded-2xl px-5">Unlock</Button>
+            </div>
           </div>
         ) : null}
 
         <div className="space-y-6">
-          <div className="flex gap-2 rounded-2xl bg-slate-100 p-1 text-sm"><span className="rounded-2xl bg-white px-4 py-2">Calendar</span><span className="rounded-2xl px-4 py-2">Request Visit</span><span className="rounded-2xl px-4 py-2">Date List</span></div>
-
-          <div className="grid gap-6 xl:grid-cols-2">
-            {months.map((month) => <CalendarMonth key={month.toISOString()} monthDate={month} bookings={activeBookings} />)}
+          <div className="flex flex-wrap gap-2 rounded-2xl bg-[#e7edf4] p-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setActiveTab('calendar')}
+              className={`rounded-2xl px-4 py-2 transition ${activeTab === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}
+            >
+              Calendar
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('request')}
+              className={`rounded-2xl px-4 py-2 transition ${activeTab === 'request' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}
+            >
+              Request Visit
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('list')}
+              className={`rounded-2xl px-4 py-2 transition ${activeTab === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}
+            >
+              Date List
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('holidays')}
+              className={`rounded-2xl px-4 py-2 transition ${activeTab === 'holidays' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}
+            >
+              Bermuda Holidays
+            </button>
           </div>
 
-          <div className="max-w-3xl rounded-[2rem] border border-slate-200 bg-white shadow-md">
+          {activeTab === 'calendar' ? (
+            <div className="grid gap-6 xl:grid-cols-2">
+              {months.map((month) => <CalendarMonth key={month.toISOString()} monthDate={month} bookings={activeBookings} />)}
+            </div>
+          ) : null}
+
+          {activeTab === 'request' ? (
+            <div className="max-w-3xl rounded-[2rem] border border-slate-200 bg-white shadow-md">
             <div className="p-6"><h2 className="text-2xl font-semibold">Request a visit</h2><p className="mt-1 text-sm text-slate-500">Requested dates appear on the calendar right away and remain requested for up to 1 week unless updated sooner.</p></div>
             <form onSubmit={handleSubmit} className="grid gap-5 p-6 pt-0 md:grid-cols-2">
               <div className="space-y-2"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-11 rounded-2xl" /></div>
@@ -382,9 +531,11 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
               <div className="flex flex-col gap-3 pt-2 md:col-span-2 sm:flex-row sm:items-center sm:justify-between"><div className="text-sm text-slate-500">Notifications go to both admins by email. WhatsApp can be added later.</div><Button type="submit" disabled={formConflicts.unavailable.length > 0 || busy} className="h-11 rounded-2xl px-6">{busy ? 'Submitting...' : 'Submit Request'}</Button></div>
               {message ? <p className="text-sm text-slate-700 md:col-span-2">{message}</p> : null}
             </form>
-          </div>
+            </div>
+          ) : null}
 
-          <div className="rounded-[2rem] border border-slate-200 bg-white shadow-md">
+          {activeTab === 'list' ? (
+            <div className="rounded-[2rem] border border-slate-200 bg-white shadow-md">
             <div className="p-6"><h2 className="text-2xl font-semibold">Current date list</h2></div>
             <div className="space-y-4 p-6 pt-0">
               {visibleItems.length === 0 ? <p className="text-slate-500">No date ranges yet.</p> : visibleItems.map((booking) => {
@@ -402,7 +553,65 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
                 );
               })}
             </div>
-          </div>
+            </div>
+          ) : null}
+
+          {activeTab === 'holidays' ? (
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-md">
+              <h2 className="text-2xl font-semibold">Bermuda holidays and events</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Helpful dates for planning visits. Event schedules can change, so use the official links for the latest details.
+              </p>
+              <div className="mt-5 space-y-3">
+                {holidays.map((item) => (
+                  <a
+                    key={`${item.name}-${item.dateRange}-${item.id ?? 'noid'}`}
+                    href={item.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    <div>
+                      <p className="font-medium text-slate-900">{item.name}</p>
+                      <p className="text-sm text-slate-500">{item.dateRange}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center text-sm text-slate-600">
+                        Official link <ExternalLink className="ml-1 h-4 w-4" />
+                      </span>
+                      {adminMode ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            deleteHolidayEvent(item.id);
+                          }}
+                          className="rounded-xl border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100"
+                          aria-label={`Delete ${item.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </a>
+                ))}
+              </div>
+              {adminMode ? (
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="font-medium text-slate-900">Add holiday/event</p>
+                  <div className="mt-3 grid gap-3 md:grid-cols-3">
+                    <Input value={holidayForm.name} onChange={(e) => setHolidayForm({ ...holidayForm, name: e.target.value })} placeholder="Event name" className="h-10 rounded-xl bg-white" />
+                    <Input value={holidayForm.dateRange} onChange={(e) => setHolidayForm({ ...holidayForm, dateRange: e.target.value })} placeholder="Date range (e.g. May 9–10, 2026)" className="h-10 rounded-xl bg-white" />
+                    <Input value={holidayForm.link} onChange={(e) => setHolidayForm({ ...holidayForm, link: e.target.value })} placeholder="https://..." className="h-10 rounded-xl bg-white" />
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <Button onClick={addHolidayEvent} disabled={busy} className="rounded-xl">{busy ? 'Saving...' : 'Add event'}</Button>
+                    {holidayMessage ? <p className="text-sm text-slate-600">{holidayMessage}</p> : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {adminMode ? <div className="grid gap-4 text-sm text-slate-600 md:grid-cols-2"><div className="rounded-3xl border border-slate-200 bg-white p-4"><p className="mb-2 font-medium text-slate-900">Suggested live wiring</p><p>Supabase stores the bookings. Resend handles email notices. Google Calendar can be added after launch.</p></div><div className="rounded-3xl border border-slate-200 bg-white p-4"><p className="mb-2 font-medium text-slate-900">Passwords</p><p>Change both passwords in Vercel environment variables, not in the code.</p></div></div> : null}
         </div>
