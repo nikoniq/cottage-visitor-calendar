@@ -36,6 +36,8 @@ type Props = {
   adminPassword: string;
 };
 
+type ActiveTab = 'calendar' | 'request' | 'list';
+
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'default' | 'outline' | 'destructive';
@@ -154,6 +156,7 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   const [bookings, setBookings] = useState<Booking[]>(initialBookings);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('calendar');
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -194,11 +197,11 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   }
 
   function handleAdminUnlock() {
-    if (adminPasswordInput === adminPassword) {
+    if (adminPasswordInput.trim() === adminPassword.trim()) {
       setAdminMode(true);
       setShowAdminPrompt(false);
       setAdminPasswordInput('');
-      setMessage('');
+      setMessage('Admin mode enabled. You can now manage request statuses and view full contact details.');
     } else {
       setMessage('That admin password is not correct.');
     }
@@ -347,6 +350,13 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
           <div className="rounded-3xl bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100"><Ban className="h-6 w-6 text-rose-700" /></div><div><p className="text-sm text-slate-500">Current unavailable ranges</p><p className="font-semibold">{unavailableRanges}</p></div></div></div>
         </div>
 
+
+
+        {adminMode ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <span className="font-semibold">Admin mode is active.</span> You can edit booking statuses, delete requests, and view full contact details below.
+          </div>
+        ) : null}
         {showAdminPrompt ? (
           <div className="max-w-xl rounded-[2rem] border border-slate-200 bg-white p-5 shadow-md md:p-6">
             <div className="mb-4 flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100"><KeyRound className="h-5 w-5 text-slate-700" /></div><div><p className="font-semibold text-slate-900">Admin access</p><p className="text-sm text-slate-500">Enter the separate admin password to manage requests.</p></div></div>
@@ -355,13 +365,38 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
         ) : null}
 
         <div className="space-y-6">
-          <div className="flex gap-2 rounded-2xl bg-slate-100 p-1 text-sm"><span className="rounded-2xl bg-white px-4 py-2">Calendar</span><span className="rounded-2xl px-4 py-2">Request Visit</span><span className="rounded-2xl px-4 py-2">Date List</span></div>
-
-          <div className="grid gap-6 xl:grid-cols-2">
-            {months.map((month) => <CalendarMonth key={month.toISOString()} monthDate={month} bookings={activeBookings} />)}
+          <div className="flex gap-2 rounded-2xl bg-slate-100 p-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setActiveTab('calendar')}
+              className={`rounded-2xl px-4 py-2 transition ${activeTab === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}
+            >
+              Calendar
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('request')}
+              className={`rounded-2xl px-4 py-2 transition ${activeTab === 'request' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}
+            >
+              Request Visit
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('list')}
+              className={`rounded-2xl px-4 py-2 transition ${activeTab === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}
+            >
+              Date List
+            </button>
           </div>
 
-          <div className="max-w-3xl rounded-[2rem] border border-slate-200 bg-white shadow-md">
+          {activeTab === 'calendar' ? (
+            <div className="grid gap-6 xl:grid-cols-2">
+              {months.map((month) => <CalendarMonth key={month.toISOString()} monthDate={month} bookings={activeBookings} />)}
+            </div>
+          ) : null}
+
+          {activeTab === 'request' ? (
+            <div className="max-w-3xl rounded-[2rem] border border-slate-200 bg-white shadow-md">
             <div className="p-6"><h2 className="text-2xl font-semibold">Request a visit</h2><p className="mt-1 text-sm text-slate-500">Requested dates appear on the calendar right away and remain requested for up to 1 week unless updated sooner.</p></div>
             <form onSubmit={handleSubmit} className="grid gap-5 p-6 pt-0 md:grid-cols-2">
               <div className="space-y-2"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-11 rounded-2xl" /></div>
@@ -382,9 +417,11 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
               <div className="flex flex-col gap-3 pt-2 md:col-span-2 sm:flex-row sm:items-center sm:justify-between"><div className="text-sm text-slate-500">Notifications go to both admins by email. WhatsApp can be added later.</div><Button type="submit" disabled={formConflicts.unavailable.length > 0 || busy} className="h-11 rounded-2xl px-6">{busy ? 'Submitting...' : 'Submit Request'}</Button></div>
               {message ? <p className="text-sm text-slate-700 md:col-span-2">{message}</p> : null}
             </form>
-          </div>
+            </div>
+          ) : null}
 
-          <div className="rounded-[2rem] border border-slate-200 bg-white shadow-md">
+          {activeTab === 'list' ? (
+            <div className="rounded-[2rem] border border-slate-200 bg-white shadow-md">
             <div className="p-6"><h2 className="text-2xl font-semibold">Current date list</h2></div>
             <div className="space-y-4 p-6 pt-0">
               {visibleItems.length === 0 ? <p className="text-slate-500">No date ranges yet.</p> : visibleItems.map((booking) => {
@@ -402,7 +439,8 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
                 );
               })}
             </div>
-          </div>
+            </div>
+          ) : null}
 
           {adminMode ? <div className="grid gap-4 text-sm text-slate-600 md:grid-cols-2"><div className="rounded-3xl border border-slate-200 bg-white p-4"><p className="mb-2 font-medium text-slate-900">Suggested live wiring</p><p>Supabase stores the bookings. Resend handles email notices. Google Calendar can be added after launch.</p></div><div className="rounded-3xl border border-slate-200 bg-white p-4"><p className="mb-2 font-medium text-slate-900">Passwords</p><p>Change both passwords in Vercel environment variables, not in the code.</p></div></div> : null}
         </div>
