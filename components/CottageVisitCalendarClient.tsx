@@ -329,17 +329,17 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#eef4f8_0%,#f7fafb_45%,#edf3ee_100%)] text-slate-900">
+      <div className="sticky top-0 z-20 border-b border-[#d6dfeb] bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Cottage Visit Calendar</h1>
-            <p className="mt-1 text-slate-500">Private visit planning for invited guests</p>
+            <p className="mt-1 text-[#4b5f79]">Private visit planning for invited guests</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm text-emerald-800">Available</span>
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm text-amber-800">Requested</span>
-            <span className="rounded-full bg-rose-100 px-3 py-1 text-sm text-rose-800">Unavailable</span>
+            <span className="rounded-full bg-[#dceedd] px-3 py-1 text-sm text-[#245341]">Available</span>
+            <span className="rounded-full bg-[#f4e7cf] px-3 py-1 text-sm text-[#7a4f1f]">Requested</span>
+            <span className="rounded-full bg-[#f4dde0] px-3 py-1 text-sm text-[#7d2940]">Unavailable</span>
             <Button variant={adminMode ? 'default' : 'outline'} className="ml-2 rounded-2xl" onClick={handleAdminToggle}><ShieldCheck className="mr-2 h-4 w-4" />{adminMode ? 'Hide Admin' : 'Admin View'}</Button>
           </div>
         </div>
@@ -347,9 +347,12 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-8">
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100"><CalendarDays className="h-6 w-6" /></div><div><p className="text-sm text-slate-500">Calendar window</p><p className="font-semibold">{formatDate(new Date(START_DATE))} to {formatDate(new Date(END_DATE))}</p></div></div></div>
-          <div className="rounded-3xl bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100"><Clock3 className="h-6 w-6 text-amber-700" /></div><div><p className="text-sm text-slate-500">Current requested ranges</p><p className="font-semibold">{requestedRanges}</p></div></div></div>
-          <div className="rounded-3xl bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100"><Ban className="h-6 w-6 text-rose-700" /></div><div><p className="text-sm text-slate-500">Current unavailable ranges</p><p className="font-semibold">{unavailableRanges}</p></div></div></div>
+          <div className="md:col-span-3 rounded-3xl border border-[#d6dfeb] bg-white/80 px-5 py-4 text-sm text-[#425774] shadow-sm">
+            House-inspired theme: soft ocean blues, garden greens, and airy cottage whites.
+          </div>
+          <div className="rounded-3xl border border-[#d8e2ef] bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e6edf8]"><CalendarDays className="h-6 w-6" /></div><div><p className="text-sm text-slate-500">Calendar window</p><p className="font-semibold">{formatDate(new Date(START_DATE))} to {formatDate(new Date(END_DATE))}</p></div></div></div>
+          <div className="rounded-3xl border border-[#e8ddcd] bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4e7cf]"><Clock3 className="h-6 w-6 text-amber-700" /></div><div><p className="text-sm text-slate-500">Current requested ranges</p><p className="font-semibold">{requestedRanges}</p></div></div></div>
+          <div className="rounded-3xl border border-[#ead8de] bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4dde0]"><Ban className="h-6 w-6 text-rose-700" /></div><div><p className="text-sm text-slate-500">Current unavailable ranges</p><p className="font-semibold">{unavailableRanges}</p></div></div></div>
         </div>
 
 
@@ -367,7 +370,7 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
         ) : null}
 
         <div className="space-y-6">
-          <div className="flex gap-2 rounded-2xl bg-slate-100 p-1 text-sm">
+          <div className="flex flex-wrap gap-2 rounded-2xl bg-[#e7edf4] p-1 text-sm">
             <button
               type="button"
               onClick={() => setActiveTab('calendar')}
