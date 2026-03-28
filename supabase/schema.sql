@@ -30,5 +30,7 @@ create table if not exists public.holiday_events (
   created_at timestamptz not null default now(),
   name text not null,
   date_range text not null,
-  link text not null
+  link text not null,
+  description text,
+  emoji text
 );

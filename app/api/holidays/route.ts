@@ -7,6 +7,8 @@ type HolidayRow = {
   name: string;
   date_range: string;
   link: string;
+  description: string | null;
+  emoji: string | null;
 };
 
 function staticHolidayFallback(): HolidayItem[] {
@@ -18,7 +20,7 @@ export async function GET() {
     const supabase = createServerSupabase();
     const { data, error } = await supabase
       .from('holiday_events')
-      .select('id,name,date_range,link')
+      .select('id,name,date_range,link,description,emoji')
       .order('created_at', { ascending: true });
 
     if (error) throw error;
@@ -28,6 +30,8 @@ export async function GET() {
       name: row.name,
       dateRange: row.date_range,
       link: row.link,
+      description: row.description ?? undefined,
+      emoji: row.emoji ?? undefined,
     }));
 
     return NextResponse.json({ holidays });
@@ -39,7 +43,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, dateRange, link, adminPassword } = body;
+    const { name, dateRange, link, description, emoji, adminPassword } = body;
 
     if (adminPassword !== process.env.ADMIN_PASSWORD) {
       return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
@@ -52,8 +56,8 @@ export async function POST(request: NextRequest) {
     const supabase = createServerSupabase();
     const { data, error } = await supabase
       .from('holiday_events')
-      .insert({ name, date_range: dateRange, link })
-      .select('id,name,date_range,link')
+      .insert({ name, date_range: dateRange, link, description: description ?? null, emoji: emoji ?? null })
+      .select('id,name,date_range,link,description,emoji')
       .single();
 
     if (error) throw error;
@@ -63,6 +67,8 @@ export async function POST(request: NextRequest) {
       name: data.name,
       dateRange: data.date_range,
       link: data.link,
+      description: data.description ?? undefined,
+      emoji: data.emoji ?? undefined,
     };
 
     return NextResponse.json({ holiday });

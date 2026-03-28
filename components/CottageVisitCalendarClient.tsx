@@ -165,7 +165,7 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   const [busy, setBusy] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('calendar');
   const [holidays, setHolidays] = useState<HolidayItem[]>(HOLIDAYS_2026.map((item, index) => ({ ...item, id: `static-${index}` })));
-  const [holidayForm, setHolidayForm] = useState({ name: '', dateRange: '', link: '' });
+  const [holidayForm, setHolidayForm] = useState({ name: '', dateRange: '', link: '', description: '', emoji: '' });
   const [holidayMessage, setHolidayMessage] = useState('');
   const [form, setForm] = useState({
     name: '',
@@ -336,7 +336,7 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
     }
 
     setHolidays((prev) => [...prev, data.holiday]);
-    setHolidayForm({ name: '', dateRange: '', link: '' });
+    setHolidayForm({ name: '', dateRange: '', link: '', description: '', emoji: '' });
     setHolidayMessage('Holiday event saved.');
   }
 
@@ -571,9 +571,17 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
                     rel="noreferrer"
                     className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50"
                   >
-                    <div>
-                      <p className="font-medium text-slate-900">{item.name}</p>
-                      <p className="text-sm text-slate-500">{item.dateRange}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base">
+                          {item.emoji ?? '🌴'}
+                        </span>
+                        <div>
+                          <p className="font-medium text-slate-900">{item.name}</p>
+                          <p className="text-sm text-slate-500">{item.dateRange}</p>
+                        </div>
+                      </div>
+                      {item.description ? <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.description}</p> : null}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="inline-flex items-center text-sm text-slate-600">
@@ -599,11 +607,13 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
               {adminMode ? (
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="font-medium text-slate-900">Add holiday/event</p>
-                  <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <div className="mt-3 grid gap-3 md:grid-cols-4">
+                    <Input value={holidayForm.emoji} onChange={(e) => setHolidayForm({ ...holidayForm, emoji: e.target.value })} placeholder="Emoji (optional)" className="h-10 rounded-xl bg-white" />
                     <Input value={holidayForm.name} onChange={(e) => setHolidayForm({ ...holidayForm, name: e.target.value })} placeholder="Event name" className="h-10 rounded-xl bg-white" />
                     <Input value={holidayForm.dateRange} onChange={(e) => setHolidayForm({ ...holidayForm, dateRange: e.target.value })} placeholder="Date range (e.g. May 9–10, 2026)" className="h-10 rounded-xl bg-white" />
                     <Input value={holidayForm.link} onChange={(e) => setHolidayForm({ ...holidayForm, link: e.target.value })} placeholder="https://..." className="h-10 rounded-xl bg-white" />
                   </div>
+                  <textarea value={holidayForm.description} onChange={(e) => setHolidayForm({ ...holidayForm, description: e.target.value })} className="mt-3 min-h-24 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Short intro (4–5 lines)." />
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <Button onClick={addHolidayEvent} disabled={busy} className="rounded-xl">{busy ? 'Saving...' : 'Add event'}</Button>
                     {holidayMessage ? <p className="text-sm text-slate-600">{holidayMessage}</p> : null}
