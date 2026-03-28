@@ -7,6 +7,8 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  Eye,
+  EyeOff,
   ExternalLink,
   Home,
   KeyRound,
@@ -155,6 +157,8 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   const [adminMode, setAdminMode] = useState(false);
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [showSharedPassword, setShowSharedPassword] = useState(false);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>(initialBookings);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -203,6 +207,7 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
       setAdminMode(true);
       setShowAdminPrompt(false);
       setAdminPasswordInput('');
+      setShowAdminPassword(false);
       setMessage('Admin mode enabled. You can now manage request statuses and view full contact details.');
     } else {
       setMessage('That admin password is not correct.');
@@ -214,8 +219,10 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
       setAdminMode(false);
       setShowAdminPrompt(false);
       setAdminPasswordInput('');
+      setShowAdminPassword(false);
       return;
     }
+    setShowAdminPassword(false);
     setShowAdminPrompt(true);
   }
 
@@ -315,7 +322,24 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
                 <div className="space-y-3">
                   <Label htmlFor="password">Shared password</Label>
                   <div className="flex gap-3">
-                    <Input id="password" type="password" value={enteredPassword} onChange={(e) => setEnteredPassword(e.target.value)} placeholder="Enter password" className="h-12 rounded-2xl" />
+                    <div className="relative flex-1">
+                      <Input
+                        id="password"
+                        type={showSharedPassword ? 'text' : 'password'}
+                        value={enteredPassword}
+                        onChange={(e) => setEnteredPassword(e.target.value)}
+                        placeholder="Enter password"
+                        className="h-12 rounded-2xl pr-12"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSharedPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
+                        aria-label={showSharedPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showSharedPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                     <Button onClick={handleUnlock} className="h-12 rounded-2xl px-6"><Lock className="mr-2 h-4 w-4" />Enter</Button>
                   </div>
                   {message ? <p className="text-sm text-rose-600">{message}</p> : null}
@@ -347,9 +371,6 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-8">
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:col-span-3 rounded-3xl border border-[#d6dfeb] bg-white/80 px-5 py-4 text-sm text-[#425774] shadow-sm">
-            House-inspired theme: soft ocean blues, garden greens, and airy cottage whites.
-          </div>
           <div className="rounded-3xl border border-[#d8e2ef] bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e6edf8]"><CalendarDays className="h-6 w-6" /></div><div><p className="text-sm text-slate-500">Calendar window</p><p className="font-semibold">{formatDate(new Date(START_DATE))} to {formatDate(new Date(END_DATE))}</p></div></div></div>
           <div className="rounded-3xl border border-[#e8ddcd] bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4e7cf]"><Clock3 className="h-6 w-6 text-amber-700" /></div><div><p className="text-sm text-slate-500">Current requested ranges</p><p className="font-semibold">{requestedRanges}</p></div></div></div>
           <div className="rounded-3xl border border-[#ead8de] bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4dde0]"><Ban className="h-6 w-6 text-rose-700" /></div><div><p className="text-sm text-slate-500">Current unavailable ranges</p><p className="font-semibold">{unavailableRanges}</p></div></div></div>
@@ -365,7 +386,26 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
         {showAdminPrompt ? (
           <div className="max-w-xl rounded-[2rem] border border-slate-200 bg-white p-5 shadow-md md:p-6">
             <div className="mb-4 flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100"><KeyRound className="h-5 w-5 text-slate-700" /></div><div><p className="font-semibold text-slate-900">Admin access</p><p className="text-sm text-slate-500">Enter the separate admin password to manage requests.</p></div></div>
-            <div className="flex gap-3"><Input type="password" value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} placeholder="Enter admin password" className="h-11 rounded-2xl" /><Button onClick={handleAdminUnlock} className="h-11 rounded-2xl px-5">Unlock</Button></div>
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Input
+                  type={showAdminPassword ? 'text' : 'password'}
+                  value={adminPasswordInput}
+                  onChange={(e) => setAdminPasswordInput(e.target.value)}
+                  placeholder="Enter admin password"
+                  className="h-11 rounded-2xl pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
+                  aria-label={showAdminPassword ? 'Hide admin password' : 'Show admin password'}
+                >
+                  {showAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <Button onClick={handleAdminUnlock} className="h-11 rounded-2xl px-5">Unlock</Button>
+            </div>
           </div>
         ) : null}
 
