@@ -194,11 +194,11 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
   }
 
   function handleAdminUnlock() {
-    if (adminPasswordInput === adminPassword) {
+    if (adminPasswordInput.trim() === adminPassword.trim()) {
       setAdminMode(true);
       setShowAdminPrompt(false);
       setAdminPasswordInput('');
-      setMessage('');
+      setMessage('Admin mode enabled. You can now manage request statuses and view full contact details.');
     } else {
       setMessage('That admin password is not correct.');
     }
@@ -347,6 +347,13 @@ export default function CottageVisitCalendarClient({ initialBookings, sharedPass
           <div className="rounded-3xl bg-white p-5 shadow-sm"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100"><Ban className="h-6 w-6 text-rose-700" /></div><div><p className="text-sm text-slate-500">Current unavailable ranges</p><p className="font-semibold">{unavailableRanges}</p></div></div></div>
         </div>
 
+
+
+        {adminMode ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <span className="font-semibold">Admin mode is active.</span> You can edit booking statuses, delete requests, and view full contact details below.
+          </div>
+        ) : null}
         {showAdminPrompt ? (
           <div className="max-w-xl rounded-[2rem] border border-slate-200 bg-white p-5 shadow-md md:p-6">
             <div className="mb-4 flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100"><KeyRound className="h-5 w-5 text-slate-700" /></div><div><p className="font-semibold text-slate-900">Admin access</p><p className="text-sm text-slate-500">Enter the separate admin password to manage requests.</p></div></div>
